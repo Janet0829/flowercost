@@ -1,0 +1,373 @@
+<title>花禮成本計算</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: 左邊是一張張手帳風的輸入卡片，右邊是像吊牌一樣的成本小卡（手機版固定一條底部成本列） */
+:root{
+  --bg:#FBF4F2; --bg-soft:#F9ECEA; --surface:#FFFCFB;
+  --ink:#4A3A40; --muted:#85737A;
+  --line:#EBDAD7; --line2:#DDC6C3;
+  --rose:#D9899A; --rose-soft:#F8E0E4; --rose-ink:#B03F5B; --on-rose:#FFFFFF;
+  --sage:#6F9479; --sage-soft:#DFEBE0; --butter:#F0D58F; --sun:#F6C744; --sun-core:#F2A93B; --sun-face:#7A4A2B;
+  --font-display:'Huninn','Noto Sans TC',system-ui,sans-serif;
+  --font-body:'Noto Sans TC',system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#211A1D; --bg-soft:#2A2125; --surface:#2F262A;
+    --ink:#F3E8EA; --muted:#B8A5AA;
+    --line:#45373C; --line2:#5A484E;
+    --rose:#E39BAB; --rose-soft:#4B2F38; --rose-ink:#F0A9B8; --on-rose:#2A1D21;
+    --sage:#A5C7AD; --sage-soft:#2F3D33; --butter:#E3C97F; --sun:#F2CE64; --sun-core:#E8A94A; --sun-face:#4A2A14;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#211A1D; --bg-soft:#2A2125; --surface:#2F262A;
+  --ink:#F3E8EA; --muted:#B8A5AA;
+  --line:#45373C; --line2:#5A484E;
+  --rose:#E39BAB; --rose-soft:#4B2F38; --rose-ink:#F0A9B8; --on-rose:#2A1D21;
+  --sage:#A5C7AD; --sage-soft:#2F3D33; --butter:#E3C97F; --sun:#F2CE64; --sun-core:#E8A94A; --sun-face:#4A2A14;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-body);margin:0;padding-inline:16px;padding-block:24px 100px}
+button,input{font:inherit;color:inherit}
+.app{max-width:1040px;margin:0 auto;display:grid;gap:22px}
+
+.hd{display:flex;align-items:center;gap:16px}
+.hd svg{width:68px;height:68px;flex:none}
+.hd h1{font:400 30px/1.2 var(--font-display);margin:0;text-wrap:balance}
+.hd p{margin:2px 0 0;color:var(--muted);font-size:14px}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start}
+.col{display:grid;gap:16px;min-width:0}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px 20px;display:grid;gap:14px;min-width:0}
+.card h2{font:400 19px/1.3 var(--font-display);display:flex;align-items:center;gap:10px;margin:0}
+.card h2 svg{width:26px;height:26px;color:var(--sage);flex:none}
+.hint{color:var(--muted);font-size:13px;margin:0}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.field{display:grid;gap:4px;min-width:0}
+.field>span{font-size:13px;color:var(--muted)}
+
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-family:var(--font-display);border:1.5px dashed var(--line2);background:transparent;color:var(--muted);padding:8px 18px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--rose-soft);border:1.5px solid var(--rose);color:var(--ink)}
+
+.panel{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 120px auto 86px;gap:10px 12px;align-items:center;padding:10px 12px;border-radius:14px;background:var(--bg-soft)}
+.rname{display:grid;line-height:1.3;min-width:0}
+.rname b{font-weight:500}
+.rname small{color:var(--muted);font-size:12px}
+.sub{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.sub.zero{color:var(--muted);font-weight:400}
+
+.money{display:flex;align-items:center;border:1px solid var(--line2);border-radius:12px;background:var(--surface);padding-inline:10px;min-width:0}
+.money i{font-style:normal;color:var(--muted);margin-right:4px}
+.money input{border:0;background:transparent;width:100%;min-width:0;padding:8px 0;outline:none;font-variant-numeric:tabular-nums}
+.money:focus-within,.text:focus,.stepper:focus-within{outline:2px solid var(--rose);outline-offset:1px}
+.text{border:1px solid var(--line2);border-radius:12px;background:var(--surface);padding:8px 12px;width:100%;min-width:0}
+
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:999px;background:var(--surface);justify-self:start}
+.stepper button{width:34px;height:34px;border:0;border-radius:50%;background:transparent;cursor:pointer;font-size:18px;color:var(--rose-ink)}
+.stepper button:hover{background:var(--rose-soft)}
+.stepper input{width:44px;border:0;background:transparent;text-align:center;padding:6px 0;outline:none;font-variant-numeric:tabular-nums}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+button:focus-visible,.chip:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+
+.labor{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.labor .calc{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+
+/* 吊牌 */
+.tag{position:sticky;top:16px;border:1.5px dashed var(--line2);border-radius:26px;background:var(--surface);padding:46px 22px 22px;display:grid;gap:14px}
+.tag::before{content:"";position:absolute;top:16px;left:50%;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:var(--bg);border:1.5px solid var(--line2)}
+.tag h2{font:400 17px var(--font-display);margin:0;text-align:center;color:var(--muted)}
+.tag .title{font:400 20px/1.3 var(--font-display);text-align:center;margin:0;overflow-wrap:anywhere}
+.lines{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.lines li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dotted var(--line2);padding-bottom:6px;font-variant-numeric:tabular-nums}
+.lines li span{color:var(--muted)}
+.lines .empty{color:var(--muted);justify-content:center;border:0}
+.big{text-align:center;display:grid;gap:2px}
+.big small{color:var(--muted);font-size:13px}
+.big strong{font:400 44px/1.1 var(--font-display);color:var(--rose-ink);font-variant-numeric:tabular-nums}
+.totals{display:grid;gap:6px;background:var(--sage-soft);border-radius:16px;padding:12px 14px;font-variant-numeric:tabular-nums}
+.totals div{display:flex;justify-content:space-between;gap:12px}
+.totals .grand{font-weight:700;font-size:17px}
+.profit{display:grid;gap:8px}
+.profit .res{display:flex;justify-content:space-between;gap:12px;font-size:14px;font-variant-numeric:tabular-nums}
+.good{color:var(--sage);font-weight:700}
+.bad{color:var(--rose-ink);font-weight:700}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{flex:1;border-radius:999px;padding:10px 14px;cursor:pointer;border:1.5px dashed var(--line2);background:transparent;white-space:nowrap}
+.btn.main{background:var(--rose-ink);color:var(--on-rose);border:1.5px solid var(--rose-ink)}
+.note{margin:0;font-size:12.5px;color:var(--muted);background:var(--butter);color:#4A3A40;padding:6px 12px;border-radius:12px}
+
+.bar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line2);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));justify-content:space-between;align-items:center;gap:12px}
+.bar div{display:grid;line-height:1.3;font-variant-numeric:tabular-nums}
+.bar small{color:var(--muted);font-size:12px}
+.bar strong{font:400 22px var(--font-display);color:var(--rose-ink)}
+.bar button{border:0;background:var(--rose-ink);color:var(--on-rose);border-radius:999px;padding:10px 16px;cursor:pointer}
+
+@media (max-width:860px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .tag{position:relative;top:0}
+  .bar{display:flex}
+}
+@media (max-width:560px){
+  .hd h1{font-size:25px}
+  .row{grid-template-columns:minmax(0,1fr) auto}
+  .row .sub{grid-column:2;grid-row:1}
+}
+@media (prefers-reduced-motion:no-preference){
+  .chip,.stepper button{transition:background .15s,border-color .15s}
+}
+</style>
+
+<div class="app">
+  <header class="hd">
+    <svg viewBox="0 0 80 80" aria-hidden="true">
+      <g fill="var(--sun)">
+        <ellipse cx="40" cy="16" rx="10" ry="13"/>
+        <ellipse cx="40" cy="16" rx="10" ry="13" transform="rotate(36 40 40)"/>
+        <ellipse cx="40" cy="16" rx="10" ry="13" transform="rotate(72 40 40)"/>
+        <ellipse cx="40" cy="16" rx="10" ry="13" transform="rotate(108 40 40)"/>
+        <ellipse cx="40" cy="16" rx="10" ry="13" transform="rotate(144 40 40)"/>
+        <ellipse cx="40" cy="16" rx="10" ry="13" transform="rotate(180 40 40)"/>
+        <ellipse cx="40" cy="16" rx="10" ry="13" transform="rotate(216 40 40)"/>
+        <ellipse cx="40" cy="16" rx="10" ry="13" transform="rotate(252 40 40)"/>
+        <ellipse cx="40" cy="16" rx="10" ry="13" transform="rotate(288 40 40)"/>
+        <ellipse cx="40" cy="16" rx="10" ry="13" transform="rotate(324 40 40)"/>
+      </g>
+      <circle cx="40" cy="40" r="17" fill="var(--sun-core)"/>
+      <circle cx="33" cy="37" r="2" fill="var(--sun-face)"/>
+      <circle cx="47" cy="37" r="2" fill="var(--sun-face)"/>
+      <path d="M33.500 44 Q40 50 46.500 44" fill="none" stroke="var(--sun-face)" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="29.500" cy="43" r="3" fill="var(--rose)" opacity=".55"/>
+      <circle cx="50.500" cy="43" r="3" fill="var(--rose)" opacity=".55"/>
+    </svg>
+    <div>
+      <h1>花禮成本計算</h1>
+      <p id="today"></p>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="col" id="form"></div>
+
+    <aside class="tag" id="summary" aria-live="polite">
+      <h2>今日成本小卡</h2>
+      <p class="title" id="s_title">未命名作品</p>
+      <ul class="lines" id="s_lines"></ul>
+      <div class="big"><small>單份成本</small><strong id="s_per">$0</strong></div>
+      <div class="totals">
+        <div><span>份數</span><span id="s_count">1</span></div>
+        <div><span>外送／運費（整單）</span><span id="s_ship">$0</span></div>
+        <div class="grand"><span>總成本</span><span id="s_total">$0</span></div>
+      </div>
+      <div class="profit">
+        <label class="field"><span>預計每份售價</span>
+          <span class="money"><i>$</i><input id="sell" type="number" inputmode="decimal" min="0" step="any" placeholder="0"></span>
+        </label>
+        <div class="res"><span>預計毛利</span><span id="s_profit">–</span></div>
+        <div class="res"><span>成本佔售價</span><span id="s_pct">–</span></div>
+      </div>
+      <p class="note" id="s_note">目前是範例數字，按「全部歸零」就能開始輸入。</p>
+      <div class="btns">
+        <button class="btn main" type="button" id="copy">複製明細</button>
+        <button class="btn" type="button" id="reset">全部歸零</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="bar">
+  <div><small>單份成本</small><strong id="b_per">$0</strong></div>
+  <div><small>總成本</small><strong id="b_total">$0</strong></div>
+  <button type="button" id="b_go">看明細</button>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var FLOWERS = [
+    ['r24','24輪',350],['r12','12輪',300],['s9','小9輪',450],
+    ['r9','9輪',550],['e8','厄瓜多 8輪',900],['c8','中國 8輪',700]
+  ];
+  var SAMPLE = {count:1,r24_q:1,r12_q:3,pf_q:6,pf_p:15,pack:40,bag:25,units:2,sell:2800};
+
+  function S(id,val,min){
+    return '<span class="stepper"><button type="button" data-step="-1" data-t="'+id+'" aria-label="減少">−</button>'+
+      '<input id="'+id+'" type="number" inputmode="numeric" min="'+(min||0)+'" step="1" value="'+(val==null?0:val)+'" aria-label="數量">'+
+      '<button type="button" data-step="1" data-t="'+id+'" aria-label="增加">+</button></span>';
+  }
+  function M(id,val,label){
+    return '<span class="money"><i>$</i><input id="'+id+'" type="number" inputmode="decimal" min="0" step="any" placeholder="0" value="'+(val==null?'':val)+'" aria-label="'+label+'"></span>';
+  }
+  function row(k,name,unit,price,qty,label){
+    return '<div class="row"><div class="rname"><b>'+name+'</b><small>'+unit+'</small></div>'+
+      M(k+'_p',price,label+'單價')+S(k+'_q',qty)+'<output class="sub zero" id="'+k+'_s">$0</output></div>';
+  }
+  var ico = {
+    flower:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.5"/><path d="M12 9.5C10 6 11 3 12 3s2 3 0 6.500M14.500 12C18 10 21 11 21 12s-3 2-6.500 0M12 14.500C14 18 13 21 12 21s-2-3 0-6.500M9.500 12C6 14 3 13 3 12s3-2 6.500 0"/></svg>',
+    leaf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19C5 10 10 5 20 4c0 9-4 15-13 15"/><path d="M5 19c3-5 6-8 10-10"/></svg>',
+    box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.500" y="9" width="17" height="11" rx="2"/><path d="M3 9h18M12 9v11M12 9c-1-4-5-5-5-3s3 3 5 3zm0 0c1-4 5-5 5-3s-3 3-5 3z"/></svg>',
+    clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.500"/><path d="M12 7.500V12l3 2"/></svg>',
+    note:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 11h8M8 15h5"/></svg>'
+  };
+
+  var h = '';
+  h += '<section class="card"><h2>'+ico.note+'今天做什麼</h2><div class="fields">'+
+    '<label class="field"><span>作品名稱（選填）</span><input class="text" id="name" type="text" placeholder="例：母親節永生花束"></label>'+
+    '<div class="field"><span>要做幾份</span>'+S('count',1,1)+'</div></div></section>';
+
+  h += '<section class="card"><h2>'+ico.flower+'主花</h2>'+
+    '<div class="chips"><button class="chip" type="button" id="chip_pres" aria-pressed="true">永生花</button>'+
+    '<button class="chip" type="button" id="chip_sola" aria-pressed="false">索拉花</button></div>'+
+    '<div class="panel" id="panel_pres">'+
+      FLOWERS.map(function(f){ return row(f[0],f[1],'每朵',f[2],0,f[1]); }).join('')+
+    '</div>'+
+    '<div class="panel" id="panel_sola" hidden>'+row('sola','索拉花','每個（單位：個）','',0,'索拉花')+'</div></section>';
+
+  h += '<section class="card"><h2>'+ico.leaf+'配花</h2>'+
+    '<div class="chips"><button class="chip" type="button" id="chip_pf" aria-pressed="true">永生配花</button>'+
+    '<button class="chip" type="button" id="chip_df" aria-pressed="false">乾燥配花</button></div>'+
+    '<div class="panel" id="panel_pf">'+row('pf','永生配花','每份用量','',0,'永生配花')+'</div>'+
+    '<div class="panel" id="panel_df" hidden>'+row('df','乾燥配花','每份用量','',0,'乾燥配花')+'</div></section>';
+
+  h += '<section class="card"><h2>'+ico.box+'包材、袋子與運費</h2><div class="fields">'+
+    '<label class="field"><span>包材（每份）</span>'+M('pack','','包材金額')+'</label>'+
+    '<label class="field"><span>袋子（每份）</span>'+M('bag','','袋子金額')+'</label>'+
+    '<label class="field"><span>外送／運費（整單）</span>'+M('ship','','運費金額')+'</label></div></section>';
+
+  h += '<section class="card"><h2>'+ico.clock+'人力製作</h2>'+
+    '<p class="hint">每 30 分鐘算一個單位，每份花禮的製作時間。</p>'+
+    '<div class="labor"><div class="field"><span>製作單位（每份）</span>'+S('units',0)+'</div>'+
+    '<div class="field"><span>每單位金額（30 分鐘）</span>'+M('rate',100,'每單位金額')+'</div>'+
+    '<div class="calc" id="labor_calc"></div></div></section>';
+
+  $('form').innerHTML = h;
+  $('today').textContent = new Date().toLocaleDateString('zh-TW',{month:'long',day:'numeric',weekday:'long'}) + '　今天做哪一款？';
+
+  function n(id){ var x = parseFloat($(id).value); return isFinite(x) && x > 0 ? x : 0; }
+  function on(k){ return $('chip_'+k).getAttribute('aria-pressed') === 'true'; }
+  function fmt(x){ return '$' + (Math.round(x*100)/100).toLocaleString('en-US',{maximumFractionDigits:2}); }
+  function setSub(k,v){ var e=$(k+'_s'); e.textContent=fmt(v); e.classList.toggle('zero',v===0); }
+
+  var lastText = '';
+  function calc(){
+    var pres = 0;
+    FLOWERS.forEach(function(f){ var v=n(f[0]+'_p')*n(f[0]+'_q'); setSub(f[0],v); pres+=v; });
+    var sola=n('sola_p')*n('sola_q'), pf=n('pf_p')*n('pf_q'), df=n('df_p')*n('df_q');
+    setSub('sola',sola); setSub('pf',pf); setSub('df',df);
+    var g = {
+      pres:on('pres')?pres:0, sola:on('sola')?sola:0,
+      pf:on('pf')?pf:0, df:on('df')?df:0,
+      pack:n('pack'), bag:n('bag'), labor:n('units')*n('rate')
+    };
+    var mins = n('units')*30;
+    $('labor_calc').textContent = mins ? ('共 '+mins+' 分鐘，人力 '+fmt(g.labor)) : '尚未計入人力';
+
+    var per = g.pres+g.sola+g.pf+g.df+g.pack+g.bag+g.labor;
+    var count = Math.max(1,Math.round(n('count')));
+    var ship = n('ship');
+    var total = per*count+ship;
+
+    var items = [['永生花',g.pres],['索拉花',g.sola],['永生配花',g.pf],['乾燥配花',g.df],['包材',g.pack],['袋子',g.bag],['人力（'+mins+' 分鐘）',g.labor]].filter(function(x){return x[1]>0;});
+    $('s_lines').innerHTML = items.length
+      ? items.map(function(x){ return '<li><span>'+x[0]+'</span><b>'+fmt(x[1])+'</b></li>'; }).join('')
+      : '<li class="empty">選好花材，成本會出現在這裡</li>';
+    $('s_title').textContent = $('name').value.trim() || '未命名作品';
+    $('s_per').textContent = fmt(per);
+    $('s_count').textContent = count + ' 份';
+    $('s_ship').textContent = fmt(ship);
+    $('s_total').textContent = fmt(total);
+    $('b_per').textContent = fmt(per);
+    $('b_total').textContent = fmt(total);
+
+    var sell = n('sell')*count, profit = sell-total;
+    if(sell>0){
+      $('s_profit').innerHTML = '<span class="'+(profit>=0?'good':'bad')+'">'+(profit<0?'-':'')+fmt(Math.abs(profit))+'</span>';
+      $('s_pct').textContent = (total/sell*100).toFixed(1)+'%';
+    } else {
+      $('s_profit').textContent = '–'; $('s_pct').textContent = '–';
+    }
+
+    lastText = ($('name').value.trim()||'未命名作品')+'　'+count+' 份\n'+
+      items.map(function(x){return x[0]+'　'+fmt(x[1]);}).join('\n')+
+      '\n單份成本　'+fmt(per)+'\n外送／運費　'+fmt(ship)+'\n總成本　'+fmt(total)+
+      (sell>0?'\n預計毛利　'+(profit<0?'-':'')+fmt(Math.abs(profit))+'（成本佔 '+(total/sell*100).toFixed(1)+'%）':'');
+  }
+
+  function snapshot(){
+    var o = {i:{},c:{}};
+    document.querySelectorAll('input[id]').forEach(function(e){ o.i[e.id]=e.value; });
+    ['pres','sola','pf','df'].forEach(function(k){ o.c[k]=on(k); });
+    return o;
+  }
+  function save(){ try{ localStorage.setItem('flowerCost.v1',JSON.stringify(snapshot())); }catch(e){} }
+  function applyChips(){
+    ['pres','sola','pf','df'].forEach(function(k){ $('panel_'+k).hidden = !on(k); });
+  }
+  function load(){
+    try{
+      var raw = localStorage.getItem('flowerCost.v1'); if(!raw) return false;
+      var o = JSON.parse(raw);
+      Object.keys(o.i).forEach(function(id){ if($(id)) $(id).value = o.i[id]; });
+      Object.keys(o.c).forEach(function(k){ $('chip_'+k).setAttribute('aria-pressed',o.c[k]?'true':'false'); });
+      return true;
+    }catch(e){ return false; }
+  }
+
+  function seed(){
+    Object.keys(SAMPLE).forEach(function(id){ $(id).value = SAMPLE[id]; });
+  }
+  function hideNote(){ $('s_note').hidden = true; }
+
+  document.addEventListener('input',function(){ hideNote(); calc(); save(); });
+  document.addEventListener('click',function(ev){
+    var b = ev.target.closest('[data-step]');
+    if(b){
+      var t = $(b.dataset.t), min = parseFloat(t.min)||0;
+      t.value = Math.max(min,(parseFloat(t.value)||0)+parseInt(b.dataset.step,10));
+      hideNote(); calc(); save(); return;
+    }
+    var c = ev.target.closest('.chip');
+    if(c){
+      c.setAttribute('aria-pressed',c.getAttribute('aria-pressed')==='true'?'false':'true');
+      applyChips(); hideNote(); calc(); save();
+    }
+  });
+
+  $('reset').addEventListener('click',function(){
+    document.querySelectorAll('input[id]').forEach(function(e){
+      var keepPrice = /_p$/.test(e.id) && FLOWERS.some(function(f){return f[0]+'_p'===e.id;});
+      if(keepPrice || e.id==='rate') return;
+      e.value = (e.id==='count') ? 1 : (e.type==='text'?'':(/_q$|^units$/.test(e.id)?0:''));
+    });
+    $('chip_pres').setAttribute('aria-pressed','true');
+    ['sola','pf','df'].forEach(function(k){ $('chip_'+k).setAttribute('aria-pressed',k==='pf'?'true':'false'); });
+    applyChips(); hideNote(); calc(); save();
+  });
+
+  $('copy').addEventListener('click',function(){
+    var btn = $('copy');
+    function done(ok){ btn.textContent = ok?'已複製':'請手動選取'; setTimeout(function(){ btn.textContent='複製明細'; },1600); }
+    function fallback(){
+      var ta = document.createElement('textarea'); ta.value = lastText; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      var ok=false; try{ ok=document.execCommand('copy'); }catch(e){}
+      document.body.removeChild(ta); done(ok);
+    }
+    try{ navigator.clipboard.writeText(lastText).then(function(){done(true);},fallback); }catch(e){ fallback(); }
+  });
+
+  $('b_go').addEventListener('click',function(){ $('summary').scrollIntoView({behavior:'smooth',block:'start'}); });
+
+  var restored = load();
+  if(!restored) seed(); else hideNote();
+  applyChips(); calc();
+})();
+</script>
